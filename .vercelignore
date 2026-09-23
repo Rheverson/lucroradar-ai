@@ -1,5 +1,5 @@
-# Projeto "API" na Vercel (diretório raiz "."): envia só o necessário para a função Python.
-# O projeto "web" usa apps/web como raiz e não é afetado por este arquivo.
+# Lido pela Vercel na raiz do repositório para os DOIS projetos (api e web).
+# Envia só o necessário: a função Python (raiz ".") e o Next.js (apps/web).
 /*
 !pyproject.toml
 !vercel_app.py
@@ -10,3 +10,8 @@
 !data
 data/landing
 data/manifest
+!apps
+apps/web/node_modules
+apps/web/.next
+apps/web/test-results
+apps/web/playwright-report

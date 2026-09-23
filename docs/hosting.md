@@ -59,8 +59,9 @@ demonstração…" e repete as leituras automaticamente enquanto a API e o banco
 
 ### 3. API — projeto Vercel "api"
 
-Diretório raiz `.`, framework FastAPI. O `.vercelignore` da raiz envia só `pyproject.toml`,
-`uv.lock`, `services/` e o código de `data/` (sem dados gerados). Variáveis (Production):
+Diretório raiz `.`, framework FastAPI, entrada `vercel_app.py`. O `.vercelignore` da raiz vale
+para os dois projetos e envia só o código necessário (sem dados gerados, testes ou
+documentação). Variáveis (Production):
 
 | Variável | Valor | Tipo |
 |---|---|---|
