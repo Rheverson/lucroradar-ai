@@ -9,5 +9,6 @@ lucroradar:
       user: "{{ env_var('POSTGRES_USER', 'lucroradar') }}"
       password: "{{ env_var('POSTGRES_PASSWORD', 'lucroradar') }}"
       dbname: "{{ env_var('POSTGRES_DB', 'lucroradar') }}"
+      sslmode: "{{ env_var('POSTGRES_SSLMODE', 'prefer') }}"
       schema: analytics
       threads: 4

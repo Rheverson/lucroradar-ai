@@ -23,8 +23,19 @@ _llm: AnthropicProvider | None = None
 
 
 def client_ip(request: Request) -> str:
-    """IP do visitante. X-Forwarded-For só é considerado atrás de proxy confiável."""
-    if get_settings().trust_forwarded_for:
+    """IP do visitante para limites de uso.
+
+    - Com PROXY_SHARED_SECRET: o middleware já exigiu o token; o IP vem de X-LR-Client-IP,
+      preenchido pelo proxy do web a partir do cabeçalho da borda do provedor.
+    - Com TRUST_FORWARDED_FOR (rede privada, ex.: Compose): primeiro valor de X-Forwarded-For.
+    - Caso contrário: IP da conexão. Cabeçalhos enviados pelo cliente são ignorados.
+    """
+    s = get_settings()
+    if s.proxy_token:
+        ip = request.headers.get("x-lr-client-ip", "").strip()
+        if ip:
+            return ip[:64]
+    elif s.trust_forwarded_for:
         fwd = request.headers.get("x-forwarded-for", "")
         if fwd:
             return fwd.split(",")[0].strip()[:64]

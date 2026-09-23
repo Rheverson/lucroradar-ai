@@ -1,0 +1,51 @@
+name: Carregar dados da demonstração
+
+# Execução manual. Gera os dados sintéticos (determinísticos), carrega no banco
+# hospedado, roda dbt build e concede leitura ao papel usado pela API.
+# A API nunca roda o pipeline ao iniciar.
+on:
+  workflow_dispatch:
+    inputs:
+      reader_role:
+        description: "Papel somente leitura usado pela API"
+        default: lucroradar_reader
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load-demo-data
+  cancel-in-progress: false
+
+jobs:
+  load:
+    runs-on: ubuntu-latest
+    environment: demo-data
+    timeout-minutes: 30
+    env:
+      # Credencial de CARGA (papel dono do banco), separada da credencial da API.
+      DATABASE_URL: ${{ secrets.LOADER_DATABASE_URL }}
+    steps:
+      - name: Verificar segredo
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Defina o segredo LOADER_DATABASE_URL (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          case "$DATABASE_URL" in
+            *sslmode=require*|*sslmode=verify-*) ;;
+            *) echo "::error::A URL precisa de sslmode=require (TLS)."; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.8.17" }
+      - run: uv sync --extra pipeline --frozen
+      - name: Pipeline (gera, carrega o que for novo, dbt build com testes)
+        run: uv run lucroradar-ingest run --generate --trigger github-actions
+      - name: Conceder leitura ao papel da API
+        env:
+          READER_ROLE: ${{ inputs.reader_role }}
+        run: uv run lucroradar-ingest grant-reader --role "$READER_ROLE"
+      - name: Resumo
+        run: uv run lucroradar-ingest status

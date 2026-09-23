@@ -10,6 +10,10 @@ só responde com evidências calculadas no servidor.
 **Todos os dados são sintéticos**, de uma empresa fictícia brasileira que vende e aluga
 equipamentos. Nenhum nome, dado ou marca de empresa real é usado.
 
+**[▶ Testar demonstração](https://lucroradar-ai.vercel.app)** — sem login e sem chave de IA.
+Hospedada em planos gratuitos: após um período sem acesso, a primeira carga pode levar até um
+minuto enquanto a API e o banco iniciam.
+
 ![Visão executiva](docs/screenshots/02-visao-executiva.png)
 
 ## A jornada
@@ -81,7 +85,7 @@ web e Playwright.
 |---|---|---|
 | Copiloto | **Demonstração sem modelo generativo**: perguntas roteirizadas respondidas pelos mesmos serviços de métricas | `ANTHROPIC_API_KEY` na API → perguntas livres com Claude e ferramentas controladas ([docs/copilot.md](docs/copilot.md)) |
 | n8n | Workflow roda manualmente com saída de teste | Envio de e-mail/mensagem exige credencial no n8n (nó desativado) |
-| Hospedagem | — | Não realizada ([docs/hosting.md](docs/hosting.md)) |
+| Hospedagem | Demonstração pública em planos gratuitos (Vercel Hobby + Neon Free), copiloto em modo demonstração | Passo a passo e segurança em [docs/hosting.md](docs/hosting.md) |
 
 ## Estrutura
 

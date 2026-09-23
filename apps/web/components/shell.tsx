@@ -1,11 +1,12 @@
 "use client";
 
-import { Activity, Bot, Building2, Database, Gauge, Hammer, Menu, Moon, SlidersHorizontal, Sun, Users, X } from "lucide-react";
+import { Activity, Bot, Building2, Loader2, Database, Gauge, Hammer, Menu, Moon, SlidersHorizontal, Sun, Users, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useApiWaking } from "@/lib/api";
 import { useFilters } from "@/lib/filters";
-import { cx } from "./ui";
+import { cx, ErrorState } from "./ui";
 
 export const NAV = [
   { href: "/executivo", label: "Visão executiva", icon: Gauge },
@@ -92,6 +93,35 @@ export function SyntheticBanner() {
   );
 }
 
+/** Estado da conexão com a API: "iniciando" após repouso e erro com nova tentativa. */
+export function ConnectionStatus() {
+  const waking = useApiWaking();
+  const { meta, metaError, reloadMeta } = useFilters();
+  if (metaError && !meta) {
+    return (
+      <div className="mb-6">
+        <ErrorState
+          message={`${metaError} Se a demonstração estava parada, os serviços gratuitos podem levar até um minuto para iniciar.`}
+          onRetry={reloadMeta}
+        />
+      </div>
+    );
+  }
+  if (!waking) return null;
+  return (
+    <div role="status" aria-live="polite" className="mb-6 flex items-start gap-3 rounded-xl border border-line bg-surface p-4 text-sm">
+      <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin text-accent" aria-hidden />
+      <div>
+        <p className="font-medium text-ink">Iniciando a demonstração…</p>
+        <p className="text-ink-2">
+          A hospedagem gratuita coloca a API e o banco em repouso após um período sem acesso. A primeira carga pode levar
+          até um minuto; os dados aparecem automaticamente.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
@@ -128,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <SyntheticBanner />
-        <main id="conteudo" className="mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">{children}</main>
+        <main id="conteudo" className="mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8"><ConnectionStatus />{children}</main>
       </div>
     </div>
   );

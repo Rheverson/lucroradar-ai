@@ -1,0 +1,11 @@
+# Projeto "API" na Vercel (diretório raiz "."): envia só o necessário para a função Python.
+# O projeto "web" usa apps/web como raiz e não é afetado por este arquivo.
+/*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!services
+!data
+data/landing
+data/manifest

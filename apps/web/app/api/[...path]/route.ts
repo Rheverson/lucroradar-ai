@@ -6,11 +6,16 @@ const API_URL = process.env.API_URL ?? "http://localhost:8000";
 const ALLOWED = /^(health|v1\/[a-z0-9\-/._]+)$/i;
 const MAX_BODY_BYTES = 8 * 1024; // perguntas e parâmetros do simulador são pequenos
 
-// IP do visitante repassado à API (usado nos limites do copiloto). Só é confiável
-// porque a API aceita X-Forwarded-For apenas quando TRUST_FORWARDED_FOR=true.
+// Segredo compartilhado com a API (só no servidor). Com ele definido, a API recusa
+// chamadas diretas e aceita o IP do visitante informado por este proxy.
+const PROXY_TOKEN = process.env.PROXY_SHARED_SECRET ?? "";
+
+// IP do visitante (limites do copiloto). Na Vercel, x-real-ip e x-forwarded-for são
+// definidos pela borda e sobrescrevem o que o cliente enviar; no Compose, pelo Docker.
 function clientIp(req: NextRequest) {
+  const real = req.headers.get("x-real-ip")?.trim();
   const fwd = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return fwd || req.headers.get("x-real-ip") || "";
+  return (real || fwd || "").slice(0, 64);
 }
 
 async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
@@ -29,7 +34,12 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
   }
   const headers: Record<string, string> = { "content-type": "application/json" };
   const ip = clientIp(req);
-  if (ip) headers["x-forwarded-for"] = ip;
+  if (PROXY_TOKEN) {
+    headers["x-lr-proxy-token"] = PROXY_TOKEN;
+    if (ip) headers["x-lr-client-ip"] = ip;
+  } else if (ip) {
+    headers["x-forwarded-for"] = ip;
+  }
   try {
     const res = await fetch(url, {
       method: req.method,
@@ -44,9 +54,11 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
       headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
     });
   } catch {
+    // Serviços gratuitos hibernam: a primeira chamada após o repouso pode falhar ou
+    // demorar. O front-end mostra "iniciando" e tenta de novo.
     return Response.json(
-      { detail: "API indisponível. Verifique se o serviço da API está em execução." },
-      { status: 503 },
+      { detail: "A API está iniciando ou indisponível. Tente novamente em alguns segundos.", code: "api_unavailable" },
+      { status: 503, headers: { "retry-after": "5" } },
     );
   }
 }

@@ -36,7 +36,7 @@ services:
       <<: *db-env
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       COPILOT_MODEL: ${COPILOT_MODEL:-claude-opus-5}
-      REPOSITORY_URL: ${REPOSITORY_URL:-https://github.com/SEU-USUARIO/lucroradar-ai}
+      REPOSITORY_URL: ${REPOSITORY_URL:-https://github.com/Rheverson/lucroradar-ai}
       CORS_ORIGINS: http://localhost:3000
       APP_ENV: ${APP_ENV:-development}
       TRUST_FORWARDED_FOR: "true"   # a API só é acessada pelo proxy do web nesta rede

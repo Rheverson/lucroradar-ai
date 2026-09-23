@@ -1,7 +1,8 @@
-# Preparação para exposição pública
+# Segurança da demonstração pública
 
-Revisão feita antes de qualquer publicação. Itens marcados como pendentes dependem da
-infraestrutura de hospedagem.
+A topologia publicada (Vercel + Neon) e suas proteções específicas estão em
+[`hosting.md`](hosting.md#segurança-nesta-topologia): token entre web e API, IP do visitante vindo
+da borda, TLS e papel somente leitura no banco.
 
 ## Credenciais somente no servidor
 
@@ -45,15 +46,14 @@ infraestrutura de hospedagem.
 | Timeout por chamada / laço | 45 s / 90 s | `COPILOT_TIMEOUT_SECONDS` |
 
 Perguntas demonstrativas não chamam o modelo e não contam nos limites. O IP do visitante é
-repassado pelo proxy do web em `X-Forwarded-For`; a API só confia nele com
-`TRUST_FORWARDED_FOR=true`, e no Compose a porta da API fica restrita a `127.0.0.1`.
+repassado pelo proxy do web: em `X-LR-Client-IP` junto com o token (`PROXY_SHARED_SECRET`,
+hospedagem) ou em `X-Forwarded-For` quando `TRUST_FORWARDED_FOR=true` (Compose, com a porta da
+API restrita a `127.0.0.1`). Em qualquer outro caso, cabeçalhos do cliente são ignorados.
 
-## Pendências antes de publicar
+## Pendências
 
-- Limites ficam na memória de um processo: com várias réplicas da API, usar um limitador
-  compartilhado (proxy reverso/CDN ou Redis).
-- Limite de taxa geral (todas as rotas) e proteção contra abuso devem ficar no proxy reverso ou
-  CDN da hospedagem.
-- Orçamento e alertas de custo no console do provedor de IA.
-- HTTPS e domínio próprio (da hospedagem).
-- Avaliação com o provedor real ainda **não executada**.
+- Limites ficam na memória de cada instância: antes de ligar um provedor pago, usar um
+  limitador compartilhado.
+- Limite de taxa geral por IP depende da proteção da borda da hospedagem (planos gratuitos).
+- Orçamento e alertas de custo no console do provedor de IA, se o modo generativo for ligado.
+- Avaliação com o provedor real ainda **não executada** (modo generativo desligado na demo).

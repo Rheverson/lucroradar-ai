@@ -5,18 +5,20 @@ description = "LucroRadar AI — inteligência de margem, caixa e produtividade 
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+# Dependências base = o que a API precisa em produção (Vercel instala só estas).
+# O pipeline (dbt) fica no extra "pipeline", usado localmente, no CI e na carga de dados.
 dependencies = [
     "psycopg[binary]>=3.2,<4",
+    "psycopg-pool>=3.2,<4",
+    "fastapi>=0.115,<1",
+    "pydantic>=2.8,<3",
+    "pydantic-settings>=2.4,<3",
+    "anthropic>=0.40",
 ]
 
 [project.optional-dependencies]
-api = [
-    "fastapi>=0.115,<1",
+server = [
     "uvicorn[standard]>=0.30,<1",
-    "pydantic>=2.8,<3",
-    "pydantic-settings>=2.4,<3",
-    "psycopg-pool>=3.2,<4",
-    "anthropic>=0.40",
 ]
 pipeline = [
     "dbt-core>=1.10,<2",
@@ -33,6 +35,10 @@ dev = [
 [project.scripts]
 lucroradar-generate = "lucroradar_generator.cli:main"
 lucroradar-ingest = "lucroradar_ingestion.cli:main"
+
+# Vercel (Python runtime): aplicação ASGI exposta como função
+[tool.vercel]
+entrypoint = "lucroradar_api.main:app"
 
 [build-system]
 requires = ["hatchling"]

@@ -64,3 +64,42 @@ def test_meta_and_status_do_not_expose_credentials(client):
     for path in ("/api/v1/meta", "/api/v1/copilot/status", "/api/health"):
         body = client.get(path).text.lower()
         assert "password" not in body and "api_key" not in body and "sk-ant" not in body
+
+
+def test_proxy_token_ip_source(monkeypatch):
+    req = SimpleNamespace(headers={"x-lr-client-ip": "198.51.100.7", "x-forwarded-for": "6.6.6.6"},
+                          client=SimpleNamespace(host="10.0.0.2"))
+    monkeypatch.setattr(copilot_router, "get_settings", lambda: Settings(proxy_shared_secret="s3gredo-de-teste"))
+    assert copilot_router.client_ip(req) == "198.51.100.7"
+    # sem segredo nem confiança explícita, cabeçalhos do cliente são ignorados
+    monkeypatch.setattr(copilot_router, "get_settings", lambda: Settings())
+    assert copilot_router.client_ip(req) == "10.0.0.2"
+
+
+def test_production_requires_tls_database_url():
+    with pytest.raises(RuntimeError):
+        Settings(app_env="production", database_url="postgresql://u:p@host/db").validate_for_runtime()
+    Settings(app_env="production", database_url="postgresql://u:p@host/db?sslmode=require").validate_for_runtime()
+
+
+@pytest.mark.db
+def test_proxy_token_required_when_configured(monkeypatch):
+    import importlib
+
+    import lucroradar_api.config as cfg
+    import lucroradar_api.main as main_mod
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("PROXY_SHARED_SECRET", "s3gredo-de-teste")
+    cfg.get_settings.cache_clear()
+    try:
+        app = importlib.reload(main_mod).app
+        c = TestClient(app)
+        assert c.get("/api/health").status_code == 200
+        assert c.get("/api/v1/meta").status_code == 403
+        assert c.get("/api/v1/meta", headers={"x-lr-proxy-token": "errado"}).status_code == 403
+        assert c.get("/api/v1/meta", headers={"x-lr-proxy-token": "s3gredo-de-teste"}).status_code == 200
+    finally:
+        monkeypatch.delenv("PROXY_SHARED_SECRET")
+        cfg.get_settings.cache_clear()
+        importlib.reload(main_mod)

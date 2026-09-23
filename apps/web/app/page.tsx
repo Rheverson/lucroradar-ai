@@ -1,6 +1,7 @@
 import { ArrowRight, Bot, Database, Gauge, SlidersHorizontal, Users } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/shell";
+import { WarmupStatus } from "@/components/warmup-status";
 
 const STEPS = [
   { icon: Gauge, title: "Identificar a queda de margem", text: "Receita, margem de contribuição, recebimentos e vencidos com comparação de período.", href: "/executivo" },
@@ -37,7 +38,8 @@ export default function Home() {
               Perguntar ao copiloto
             </Link>
           </div>
-          <p className="mt-6 text-xs text-blue-200">
+          <WarmupStatus />
+          <p className="mt-4 text-xs text-blue-200">
             Dados 100% sintéticos de uma empresa fictícia de venda e locação de equipamentos. Sem login; nada do que você fizer altera os dados compartilhados.
           </p>
         </section>

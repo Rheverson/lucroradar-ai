@@ -30,13 +30,31 @@ SCHEMA_SQL = Path(__file__).with_name("schema.sql")
 
 
 def conninfo_from_env() -> str:
+    """Conexão da carga. DATABASE_URL (ex.: banco gerenciado com TLS) tem precedência."""
+    url = os.getenv("DATABASE_URL")
+    if url:
+        return url
     return psycopg.conninfo.make_conninfo(
         host=os.getenv("POSTGRES_HOST", "localhost"),
         port=os.getenv("POSTGRES_PORT", "5432"),
         user=os.getenv("POSTGRES_USER", "lucroradar"),
         password=os.getenv("POSTGRES_PASSWORD", "lucroradar"),
         dbname=os.getenv("POSTGRES_DB", "lucroradar"),
+        sslmode=os.getenv("POSTGRES_SSLMODE", "prefer"),
     )
+
+
+def export_dbt_env_from_url() -> None:
+    """Traduz DATABASE_URL para as variáveis POSTGRES_* lidas pelo profiles.yml do dbt."""
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        return
+    d = psycopg.conninfo.conninfo_to_dict(url)
+    mapping = {"host": "POSTGRES_HOST", "port": "POSTGRES_PORT", "user": "POSTGRES_USER",
+               "password": "POSTGRES_PASSWORD", "dbname": "POSTGRES_DB", "sslmode": "POSTGRES_SSLMODE"}
+    for key, env in mapping.items():
+        if d.get(key):
+            os.environ[env] = str(d[key])
 
 
 class ContractError(RuntimeError):

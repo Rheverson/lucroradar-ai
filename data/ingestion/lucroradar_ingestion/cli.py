@@ -14,8 +14,15 @@ import sys
 from pathlib import Path
 
 import psycopg
+from psycopg import sql
 
-from .loader import conninfo_from_env, discover_batches, ensure_schema, load_batch
+from .loader import (
+    conninfo_from_env,
+    discover_batches,
+    ensure_schema,
+    export_dbt_env_from_url,
+    load_batch,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 DBT_DIR = ROOT / "analytics" / "dbt"
@@ -53,10 +60,32 @@ class RunLog:
             (status, message, self.run_id))
 
 
+READER_SCHEMAS = ("raw", "staging", "intermediate", "marts", "quality", "audit", "reference", "util")
+
+
+def grant_reader(conn: psycopg.Connection, role: str) -> None:
+    """Somente leitura para o papel usado pela API; a carga continua com o papel dono."""
+    exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone()
+    if not exists:
+        raise SystemExit(f"Papel '{role}' não existe. Crie-o no painel do banco e rode novamente.")
+    r = sql.Identifier(role)
+    schemas = [s for (s,) in conn.execute(
+        "SELECT nspname FROM pg_namespace WHERE nspname = ANY(%s)", (list(READER_SCHEMAS),))]
+    for name in schemas:
+        n = sql.Identifier(name)
+        conn.execute(sql.SQL("GRANT USAGE ON SCHEMA {} TO {}").format(n, r))
+        conn.execute(sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA {} TO {}").format(n, r))
+        conn.execute(sql.SQL("GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {} TO {}").format(n, r))
+        conn.execute(sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA {} GRANT SELECT ON TABLES TO {}").format(n, r))
+    conn.execute(sql.SQL("ALTER ROLE {} SET default_transaction_read_only = on").format(r))
+    print(f"Leitura concedida a {role} em: {', '.join(sorted(schemas))}")
+
+
 def run_dbt(args: list[str]) -> tuple[bool, str]:
     from dbt.cli.main import dbtRunner
 
     os.environ.setdefault("DBT_PROFILES_DIR", str(DBT_DIR))
+    export_dbt_env_from_url()
     res = dbtRunner().invoke([*args, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR)])
     detail = ""
     if res.result is not None and hasattr(res.result, "results"):
@@ -103,11 +132,16 @@ def main(argv: list[str] | None = None) -> None:
     p_run.add_argument("--skip-dbt", action="store_true")
     p_run.add_argument("--trigger", default="manual")
     sub.add_parser("status")
+    p_grant = sub.add_parser("grant-reader", help="concede leitura dos esquemas a um papel já existente")
+    p_grant.add_argument("--role", default="lucroradar_reader")
     args = ap.parse_args(argv)
 
     with psycopg.connect(conninfo_from_env(), autocommit=True) as conn:
         if args.cmd == "load":
             cmd_load(conn, args.landing, args.replace, None)
+            return
+        if args.cmd == "grant-reader":
+            grant_reader(conn, args.role)
             return
         if args.cmd == "status":
             ensure_schema(conn)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import logging
 import uuid
 from contextlib import asynccontextmanager
@@ -37,6 +38,21 @@ app.add_middleware(
     allow_credentials=False,
     allow_headers=["Content-Type"],
 )
+
+
+@app.middleware("http")
+async def require_proxy_token(request: Request, call_next):
+    """Com PROXY_SHARED_SECRET definido, /api/v1/* só atende o proxy do web.
+
+    A API pública fica restrita ao front-end; o segredo nunca vai ao navegador.
+    /api/health continua aberto (sem dados) para verificação do provedor.
+    """
+    token = _settings.proxy_token
+    if token and request.url.path.startswith("/api/v1/"):
+        sent = request.headers.get("x-lr-proxy-token", "")
+        if not hmac.compare_digest(sent.encode(), token.encode()):
+            return JSONResponse(status_code=403, content={"detail": "Acesso permitido apenas pela aplicação web."})
+    return await call_next(request)
 
 
 @app.exception_handler(DatabaseUnavailable)

@@ -25,7 +25,7 @@ export const PRESETS: { id: string; label: string; description: string; values: 
 ];
 
 type Ctx = {
-  meta: Meta | null; metaError: string | null; values: FilterValues; query: string;
+  meta: Meta | null; metaError: string | null; reloadMeta: () => void; values: FilterValues; query: string;
   setFilters: (patch: FilterValues, replaceAll?: boolean) => void; withQuery: (path: string, extra?: Record<string, string>) => string;
 };
 const FiltersContext = createContext<Ctx | null>(null);
@@ -81,7 +81,7 @@ export function FiltersProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <FiltersContext.Provider
-      value={{ meta: meta.data, metaError: meta.error?.message ?? null, values, query, setFilters, withQuery }}
+      value={{ meta: meta.data, metaError: meta.error?.message ?? null, reloadMeta: meta.reload, values, query, setFilters, withQuery }}
     >
       {children}
     </FiltersContext.Provider>

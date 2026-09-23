@@ -18,14 +18,23 @@ class DatabaseUnavailable(RuntimeError):
     pass
 
 
+def _configure(conn) -> None:
+    # A API só lê: garante no nível da sessão (além do usuário somente leitura em produção).
+    # SET em vez de "options" na conexão: compatível com poolers (ex.: PgBouncer do Neon).
+    conn.execute("SET default_transaction_read_only = on")
+    conn.execute("SET statement_timeout = '15s'")
+
+
 def get_pool() -> ConnectionPool:
     global _pool
     if _pool is None:
+        s = get_settings()
         _pool = ConnectionPool(
-            get_settings().conninfo, min_size=1, max_size=8, open=True, timeout=5,
-            kwargs={"row_factory": dict_row, "autocommit": True,
-                    # a API só lê: garante no nível da sessão
-                    "options": "-c default_transaction_read_only=on -c statement_timeout=15000"},
+            s.conninfo, min_size=0, max_size=s.db_pool_max_size, open=True, timeout=20,
+            max_idle=60, configure=_configure,
+            # prepare_threshold=None: sem prepared statements (seguro atrás de pooler em modo transação)
+            kwargs={"row_factory": dict_row, "autocommit": True, "prepare_threshold": None,
+                    "connect_timeout": 15},
         )
     return _pool
 
