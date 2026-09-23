@@ -2,6 +2,7 @@
 # O projeto "web" usa apps/web como raiz e não é afetado por este arquivo.
 /*
 !pyproject.toml
+!vercel_app.py
 !uv.lock
 !README.md
 !LICENSE

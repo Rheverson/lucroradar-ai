@@ -38,7 +38,7 @@ lucroradar-ingest = "lucroradar_ingestion.cli:main"
 
 # Vercel (Python runtime): aplicação ASGI exposta como função
 [tool.vercel]
-entrypoint = "lucroradar_api.main:app"
+entrypoint = "vercel_app:app"
 
 [build-system]
 requires = ["hatchling"]
