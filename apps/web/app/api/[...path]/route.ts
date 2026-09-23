@@ -49,18 +49,26 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
       signal: AbortSignal.timeout(req.method === "POST" && joined.includes("copilot") ? 120_000 : 30_000),
     });
     const text = await res.text();
+    const contentType = res.headers.get("content-type") ?? "";
+    // Erro 5xx fora do formato da API (ex.: falha da plataforma ao iniciar a função)
+    // vira 503 genérico: não repassa detalhes e permite nova tentativa no front-end.
+    if (res.status >= 500 && !contentType.includes("application/json")) return unavailable();
     return new Response(text, {
       status: res.status,
-      headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
+      headers: { "content-type": contentType || "application/json" },
     });
   } catch {
-    // Serviços gratuitos hibernam: a primeira chamada após o repouso pode falhar ou
-    // demorar. O front-end mostra "iniciando" e tenta de novo.
-    return Response.json(
-      { detail: "A API está iniciando ou indisponível. Tente novamente em alguns segundos.", code: "api_unavailable" },
-      { status: 503, headers: { "retry-after": "5" } },
-    );
+    return unavailable();
   }
+}
+
+// Serviços gratuitos hibernam: a primeira chamada após o repouso pode falhar ou
+// demorar. O front-end mostra "iniciando" e tenta de novo.
+function unavailable() {
+  return Response.json(
+    { detail: "A API está iniciando ou indisponível. Tente novamente em alguns segundos.", code: "api_unavailable" },
+    { status: 503, headers: { "retry-after": "5" } },
+  );
 }
 
 export const GET = forward;
