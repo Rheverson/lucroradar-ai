@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -22,12 +23,18 @@ async def lifespan(_: FastAPI):
     close_pool()
 
 
+_settings = get_settings()
+_settings.validate_for_runtime()
+_docs = _settings.expose_api_docs and not _settings.is_production
 app = FastAPI(title="LucroRadar AI API", version="0.1.0", lifespan=lifespan,
-              description="API de métricas sobre dados sintéticos. Somente leitura.")
+              description="API de métricas sobre dados sintéticos. Somente leitura.",
+              docs_url="/docs" if _docs else None, redoc_url=None,
+              openapi_url="/openapi.json" if _docs else None)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in get_settings().cors_origins.split(",") if o.strip()],
     allow_methods=["GET", "POST"],
+    allow_credentials=False,
     allow_headers=["Content-Type"],
 )
 
@@ -39,10 +46,19 @@ async def db_unavailable(_: Request, exc: DatabaseUnavailable):
         "detail": "Banco de dados indisponível. Verifique se o PostgreSQL está ativo e o pipeline foi executado."})
 
 
+@app.exception_handler(Exception)
+async def unexpected(_: Request, exc: Exception):
+    # Detalhes ficam só no log do servidor; o cliente recebe um identificador para suporte.
+    error_id = uuid.uuid4().hex[:12]
+    log.exception("erro inesperado %s", error_id, exc_info=exc)
+    return JSONResponse(status_code=500, content={
+        "detail": "Erro interno ao processar a solicitação.", "error_id": error_id})
+
+
 @app.exception_handler(LookupError)
 async def no_data(_: Request, exc: LookupError):
     return JSONResponse(status_code=503, content={
-        "detail": f"Dados ainda não carregados: {exc}. Execute o pipeline (make pipeline)."})
+        "detail": "Dados ainda não carregados. Execute o pipeline (make pipeline)."})
 
 
 @app.get("/api/health")
@@ -51,8 +67,9 @@ def health():
         row = query_one("select reference_date from staging.stg_dataset")
         return {"status": "ok", "database": "ok", "data_loaded": bool(row),
                 "copilot_mode": "llm" if get_settings().llm_enabled else "demo"}
-    except Exception as exc:  # noqa: BLE001
-        return JSONResponse(status_code=503, content={"status": "degraded", "database": str(exc)[:200]})
+    except Exception:  # noqa: BLE001
+        log.warning("health: banco indisponível", exc_info=True)
+        return JSONResponse(status_code=503, content={"status": "degraded", "database": "unavailable"})
 
 
 app.include_router(api.router)

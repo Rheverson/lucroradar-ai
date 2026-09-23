@@ -1,0 +1,52 @@
+# Avaliação do copiloto com o provedor real de IA. Execução MANUAL apenas
+# (Actions → "Avaliação do copiloto (LLM real)" → Run workflow), porque consome
+# tokens pagos. A chave vem do segredo ANTHROPIC_API_KEY do repositório/ambiente;
+# nunca é impressa nem enviada ao navegador.
+name: Avaliação do copiloto (LLM real)
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Modelo (COPILOT_MODEL)"
+        required: false
+        default: "claude-opus-5"
+
+permissions:
+  contents: read
+
+jobs:
+  llm-eval:
+    runs-on: ubuntu-latest
+    environment: llm-eval   # permite exigir aprovação manual e restringir o segredo a este job
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: lucroradar, POSTGRES_PASSWORD: lucroradar, POSTGRES_DB: lucroradar }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lucroradar" --health-interval 3s --health-retries 20
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: lucroradar
+      POSTGRES_PASSWORD: lucroradar
+      POSTGRES_DB: lucroradar
+      COPILOT_MODEL: ${{ inputs.model }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.8.17" }
+      - run: uv sync --all-extras --frozen
+      - run: uv run lucroradar-ingest run --generate --trigger llm-eval
+      - name: Avaliação ao vivo
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::Segredo ANTHROPIC_API_KEY não configurado; avaliação não executada."
+            exit 1
+          fi
+          uv run python tests/evals/run_llm_evals.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: avaliacao-llm, path: reports/llm-eval.json }

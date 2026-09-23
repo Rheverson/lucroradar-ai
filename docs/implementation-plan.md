@@ -90,6 +90,23 @@ sandbox exige um proxy com CA próprio. A verificação usou imagens do espelho 
 `mirror.gcr.io` e uma variante temporária dos Dockerfiles com o CA do proxy (fora do repositório).
 Os Dockerfiles versionados não dependem disso.
 
+### Validação da versão independente (23/09/2026)
+
+Cópia extraída só com arquivos rastreados (sem histórico), validada em container recém-reiniciado,
+banco vazio, `.venv` e `node_modules` novos.
+
+| Verificação | Resultado | Tipo |
+|---|---|---|
+| `uv sync --frozen`, `npm ci`, ruff, eslint, tsc, `next build` | ok | concluída |
+| Pipeline do zero + reexecução (0 linhas novas) | ok; dbt 119 nós, 58 testes | concluída |
+| pytest (inclui segurança e SDK offline) | 72/72 | concluída |
+| Playwright contra build de produção local | 9/9, sem violação de CSP | concluída |
+| Lógica do workflow n8n | ok | concluída |
+| Docker Compose do zero + Playwright 9/9 + n8n 1.110.1 | ok | **depende de adaptação local de proxy** (espelho `mirror.gcr.io` e CA do proxy injetada em cópia temporária dos Dockerfiles) |
+| `APP_ENV=production`: recusa senha padrão; `/docs` desligado | ok (no container) | concluída |
+| CI no GitHub desta raiz | não executado (sem repositório remoto) | bloqueada por decisão |
+| Avaliação com provedor real de IA | não executada (sem chave) | bloqueada — requer segredo |
+
 ### Demonstração (funciona, mas com limites declarados)
 
 - Copiloto sem chave: respostas roteirizadas por regras sobre os serviços de métricas.

@@ -104,6 +104,7 @@ web e Playwright.
   [Métricas e regras de negócio](docs/metrics.md) · [Pipeline](docs/pipeline.md) ·
   [Dados sintéticos](docs/synthetic-data.md) · [Copiloto](docs/copilot.md) ·
   [Automação n8n](automations/n8n/README.md) · [Hospedagem](docs/hosting.md) ·
+  [Segurança e exposição pública](docs/security.md) ·
   [Plano e status](docs/implementation-plan.md)
 
 ## Limitações conhecidas

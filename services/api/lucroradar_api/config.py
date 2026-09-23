@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     copilot_model: str = "claude-opus-5"
     copilot_effort: str = "medium"  # low | medium | high | xhigh | max
     copilot_requests_per_minute: int = 6  # por IP, só no modo LLM
+    copilot_daily_limit: int = 200  # teto global de perguntas livres ao LLM por dia (controle de custo)
+
+    # Exposição pública
+    app_env: str = "development"  # development | production
+    trust_forwarded_for: bool = False  # True só atrás de um proxy confiável (web Next.js)
+    expose_api_docs: bool = True  # /docs e /openapi.json; desligar em produção
     copilot_timeout_seconds: float = 45.0
     copilot_max_question_chars: int = 600
     copilot_max_tool_calls: int = 6
@@ -38,6 +44,15 @@ class Settings(BaseSettings):
             host=self.postgres_host, port=self.postgres_port, user=self.postgres_user,
             password=self.postgres_password.get_secret_value(), dbname=self.postgres_db,
         )
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.lower() == "production"
+
+    def validate_for_runtime(self) -> None:
+        """Em produção, recusa iniciar com a senha padrão de desenvolvimento."""
+        if self.is_production and self.postgres_password.get_secret_value() in ("lucroradar", "", "troque-esta-senha-local"):
+            raise RuntimeError("APP_ENV=production exige POSTGRES_PASSWORD definida (não use o valor padrão).")
 
     @property
     def llm_enabled(self) -> bool:

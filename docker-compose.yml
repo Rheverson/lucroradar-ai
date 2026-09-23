@@ -16,7 +16,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-lucroradar}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lucroradar}
       POSTGRES_DB: ${POSTGRES_DB:-lucroradar}
-    ports: ["${DB_PORT:-5432}:5432"]
+    ports: ["127.0.0.1:${DB_PORT:-5432}:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -38,7 +38,10 @@ services:
       COPILOT_MODEL: ${COPILOT_MODEL:-claude-opus-5}
       REPOSITORY_URL: ${REPOSITORY_URL:-https://github.com/SEU-USUARIO/lucroradar-ai}
       CORS_ORIGINS: http://localhost:3000
-    ports: ["${API_PORT:-8000}:8000"]
+      APP_ENV: ${APP_ENV:-development}
+      TRUST_FORWARDED_FOR: "true"   # a API só é acessada pelo proxy do web nesta rede
+      COPILOT_DAILY_LIMIT: ${COPILOT_DAILY_LIMIT:-200}
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]   # a API não é exposta diretamente; o web faz o proxy
     depends_on:
       db: { condition: service_healthy }
       pipeline: { condition: service_completed_successfully }

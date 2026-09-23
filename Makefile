@@ -1,5 +1,6 @@
 # Atalhos. Requer uv, Node 22 e PostgreSQL 16 (ou use `make up` com Docker).
-.PHONY: install pipeline api web dev test test-python test-dbt test-e2e test-n8n lint summary up down clean
+# .PHONY inclui eval-llm
+.PHONY: eval-llm install pipeline api web dev test test-python test-dbt test-e2e test-n8n lint summary up down clean
 
 install:
 	uv sync --all-extras
@@ -43,3 +44,6 @@ down:
 
 clean:
 	rm -rf data/landing data/manifest analytics/dbt/target reports
+
+eval-llm:            ## avaliação com o provedor real; lê ANTHROPIC_API_KEY do ambiente ou do .env (nunca do chat)
+	uv run python tests/evals/run_llm_evals.py

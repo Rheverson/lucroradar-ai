@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from lucroradar_api import metrics
@@ -22,7 +23,9 @@ from lucroradar_api.config import get_settings
 from lucroradar_api.copilot.providers import AnthropicProvider, CopilotError
 from lucroradar_api.filters import build_filters
 
-MANIFEST = json.loads((Path(__file__).resolve().parents[2] / "data/manifest/ground_truth.json").read_text())
+ROOT = Path(__file__).resolve().parents[2]
+REPORT = ROOT / "reports" / "llm-eval.json"
+MANIFEST = json.loads((ROOT / "data/manifest/ground_truth.json").read_text())
 SC = MANIFEST["scenarios"]
 
 CASES = [
@@ -36,14 +39,27 @@ CASES = [
 CAUSAL = re.compile(r"\b(causou|causaram|comprova|comprovadamente)\b", re.I)
 
 
+def write_report(status: str, model: str | None, results: list[dict]) -> None:
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
+    REPORT.write_text(json.dumps({
+        "status": status,  # nao_executado | aprovado | reprovado
+        "model": model,
+        "executed_at": datetime.now(UTC).isoformat(),
+        "passed": sum(r["ok"] for r in results),
+        "total": len(results),
+        "results": results,
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def main() -> int:
     s = get_settings()
     if not s.llm_enabled:
-        print("ANTHROPIC_API_KEY ausente: avaliação ao vivo não executada.")
+        write_report("nao_executado", None, [])
+        print("ANTHROPIC_API_KEY ausente: avaliação ao vivo NÃO executada (status nao_executado).")
         return 2
     meta = metrics.get_meta()
     provider = AnthropicProvider(s)
-    failures = 0
+    results = []
     for case in CASES:
         f = build_filters(start="2026-01", end="2026-06", options=meta["options"],
                           window=(meta["window_start"], meta["window_end"]), **case["filters"])
@@ -51,7 +67,7 @@ def main() -> int:
             a = provider.answer(case["q"], f)
         except CopilotError as exc:
             print(f"ERRO  {case['q']}: {exc}")
-            failures += 1
+            results.append({"question": case["q"], "ok": False, "error": str(exc)})
             continue
         text = " ".join(e["label"] + " " + e["formatted"] for e in a["evidence"])
         checks = {
@@ -62,10 +78,14 @@ def main() -> int:
             "sem_causalidade_forte": not CAUSAL.search(a["summary"]),
         }
         ok = all(checks.values())
-        failures += not ok
+        results.append({"question": case["q"], "ok": ok, "checks": checks, "summary": a["summary"],
+                        "tool_calls": a["tool_calls"], "model": a["model"]})
         print(f"{'OK  ' if ok else 'FALHA'} {case['q']} {checks}")
-    print(f"\n{len(CASES) - failures}/{len(CASES)} perguntas aprovadas")
-    return 1 if failures else 0
+    passed = sum(r["ok"] for r in results)
+    status = "aprovado" if passed == len(CASES) else "reprovado"
+    write_report(status, s.copilot_model, results)
+    print(f"\n{passed}/{len(CASES)} perguntas aprovadas — status: {status}. Relatório: {REPORT}")
+    return 0 if status == "aprovado" else 1
 
 
 if __name__ == "__main__":

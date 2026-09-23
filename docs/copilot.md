@@ -39,6 +39,7 @@ associação ≠ causa · links para a análise correspondente · ferramentas ch
 | `COPILOT_MAX_TOOL_CALLS` | 6 | Chamadas de ferramenta por pergunta |
 | `COPILOT_MAX_OUTPUT_TOKENS` | 1500 | Tokens de saída por chamada |
 | `COPILOT_REQUESTS_PER_MINUTE` | 6 | Limite por IP (só perguntas livres no modo LLM) |
+| `COPILOT_DAILY_LIMIT` | 200 | Teto global diário de perguntas livres ao modelo (controle de custo) |
 
 A requisição usa o SDK oficial `anthropic` (`client.beta.messages.create`) com o beta de
 fallback do servidor (`fallbacks: "default"`) para recusas. Tratamento: chave inválida, limite
@@ -50,6 +51,33 @@ caracteres. A chave nunca é enviada ao navegador; o Next.js só repassa `/api/*
 variar entre execuções; o modelo pode escolher ferramentas menos adequadas — as evidências
 sempre permitem conferir. A integração com chave real **não foi executada** neste ambiente
 (sem credencial); a mecânica do laço foi testada com cliente falso.
+
+## Avaliar o provedor real (sem colar a chave em lugar nenhum público)
+
+A chave **nunca** deve ser colada em chat, issue, commit ou variável `NEXT_PUBLIC_*`. Configure-a
+como segredo em um destes lugares, conforme onde a avaliação vai rodar:
+
+| Onde roda | Onde configurar | Nome |
+|---|---|---|
+| Sua máquina | arquivo `.env` na raiz (já ignorado pelo git) ou variável exportada no terminal | `ANTHROPIC_API_KEY` |
+| Sessão do Claude Code na nuvem | menu do ambiente no título da sessão → **Edit** → variáveis de ambiente/credenciais; vale para uma **nova** sessão | `ANTHROPIC_API_KEY` |
+| GitHub Actions | *Settings → Environments → `llm-eval` → Environment secrets* (ou *Settings → Secrets and variables → Actions*) | `ANTHROPIC_API_KEY` |
+| Hospedagem futura | cofre de segredos do provedor, atribuído só ao serviço da API | `ANTHROPIC_API_KEY` |
+
+Execução:
+
+```bash
+make eval-llm                  # local; grava reports/llm-eval.json
+```
+
+ou, no GitHub, **Actions → "Avaliação do copiloto (LLM real)" → Run workflow** (manual; consome
+tokens pagos). O relatório tem `status`: `nao_executado`, `aprovado` ou `reprovado`.
+**Enquanto o status não for `aprovado` a partir de uma execução real, o modo LLM não está
+avaliado.** Sem chave, o script grava `nao_executado` e sai com código 2.
+
+Verificações que **já rodam sem chave** (`tests/python/test_copilot_sdk_offline.py`): o SDK
+oficial monta a requisição correta (modelo, ferramentas, beta de fallback) e converte erros
+401/429/500 em mensagens genéricas — usando transporte HTTP simulado, sem rede.
 
 ## Avaliações
 
