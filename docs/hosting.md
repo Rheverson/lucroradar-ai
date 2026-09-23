@@ -13,7 +13,7 @@ navegador ──HTTPS──▶ Vercel (Hobby) · projeto "web"  (Next.js, apps/w
                           ▼
                      Neon (Free) · PostgreSQL gerenciado
                           ▲
-                          │  LOADER_DATABASE_URL (papel dono) — só no GitHub Actions
+                          │  papel dono via integração Neon ↔ GitHub (ou LOADER_DATABASE_URL)
                      workflow manual "Carregar dados da demonstração"
 ```
 
@@ -40,22 +40,26 @@ demonstração…" e repete as leituras automaticamente enquanto a API e o banco
 ### 1. Banco (Neon Free) — painel
 
 1. Em <https://console.neon.tech>, crie um projeto (plano Free, região `AWS us-east-1`, a mesma
-   das funções da Vercel por padrão). Nome sugerido: `lucroradar-ai`.
-2. **Roles → New role** → nome `lucroradar_reader`. Guarde a senha gerada (não a cole em chat).
-3. Em **Connect**, copie duas strings de conexão **diretas** (desligue "Connection pooling"),
-   ambas com `sslmode=require`:
-   - a do papel dono (ex.: `neondb_owner`) → será `LOADER_DATABASE_URL`;
-   - a do papel `lucroradar_reader` → será `DATABASE_URL` da API.
+   das funções da Vercel por padrão), só com **Postgres database** ligado. Nome sugerido:
+   `lucroradar-ai`.
+2. **Integrations → GitHub → Add** e escolha o repositório `lucroradar-ai`. A integração grava
+   no repositório o segredo `NEON_API_KEY` e a variável `NEON_PROJECT_ID`, usados apenas pelo
+   workflow de carga. (Alternativa sem integração: segredo `LOADER_DATABASE_URL` com a string
+   direta do papel dono e `sslmode=require`.)
 
 ### 2. Carga dos dados — GitHub
 
-1. No repositório, **Settings → Secrets and variables → Actions → New repository secret**:
-   `LOADER_DATABASE_URL` = string do papel dono.
-2. **Actions → Carregar dados da demonstração → Run workflow** (papel padrão
-   `lucroradar_reader`). O job gera os dados sintéticos (determinísticos), carrega só o que for
-   novo, roda `dbt build` com os 58 testes e concede `USAGE`/`SELECT` ao papel de leitura
-   (com privilégios padrão para tabelas recriadas depois) e `default_transaction_read_only`.
-3. Rodar de novo é seguro: os arquivos são reconhecidos pelo hash (0 linhas novas).
+1. **Actions → Carregar dados da demonstração → Run workflow** (padrões: leitura
+   `lucroradar_reader`, dono `neondb_owner`, banco `neondb`). O job:
+   - cria o papel `lucroradar_reader` no Neon se ele não existir (a senha não é exibida);
+   - obtém a string do papel dono na hora, com `sslmode=require`, mascarada nos logs;
+   - gera os dados sintéticos (determinísticos), carrega só o que for novo e roda `dbt build`
+     com os 58 testes;
+   - concede `USAGE`/`SELECT` ao papel de leitura (com privilégios padrão para tabelas recriadas
+     depois) e `default_transaction_read_only`.
+2. Rodar de novo é seguro: os arquivos são reconhecidos pelo hash (0 linhas novas).
+3. No painel do Neon, **Connect** → papel `lucroradar_reader`, "Connection pooling" desligado →
+   copie a string (com `sslmode=require`) para a variável `DATABASE_URL` da API (passo 3).
 
 ### 3. API — projeto Vercel "api"
 

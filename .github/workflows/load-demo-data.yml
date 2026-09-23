@@ -3,12 +3,25 @@ name: Carregar dados da demonstração
 # Execução manual. Gera os dados sintéticos (determinísticos), carrega no banco
 # hospedado, roda dbt build e concede leitura ao papel usado pela API.
 # A API nunca roda o pipeline ao iniciar.
+#
+# Credencial de carga (papel dono do banco), separada da credencial da API. Uma de:
+#  - integração Neon ↔ GitHub: segredo NEON_API_KEY + variável NEON_PROJECT_ID
+#    (a string de conexão é obtida na hora e mascarada nos logs); ou
+#  - segredo LOADER_DATABASE_URL com sslmode=require.
 on:
   workflow_dispatch:
     inputs:
       reader_role:
         description: "Papel somente leitura usado pela API"
         default: lucroradar_reader
+        required: true
+      owner_role:
+        description: "Papel dono do banco (Neon)"
+        default: neondb_owner
+        required: true
+      database:
+        description: "Banco (Neon)"
+        default: neondb
         required: true
 
 permissions:
@@ -18,25 +31,46 @@ concurrency:
   group: load-demo-data
   cancel-in-progress: false
 
+env:
+  NEON_CLI: neon@6.0.0
+
 jobs:
   load:
     runs-on: ubuntu-latest
-    environment: demo-data
     timeout-minutes: 30
-    env:
-      # Credencial de CARGA (papel dono do banco), separada da credencial da API.
-      DATABASE_URL: ${{ secrets.LOADER_DATABASE_URL }}
     steps:
-      - name: Verificar segredo
+      - name: Obter conexão de carga
+        env:
+          LOADER_DATABASE_URL: ${{ secrets.LOADER_DATABASE_URL }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          OWNER_ROLE: ${{ inputs.owner_role }}
+          READER_ROLE: ${{ inputs.reader_role }}
+          DATABASE: ${{ inputs.database }}
         run: |
-          if [ -z "$DATABASE_URL" ]; then
-            echo "::error::Defina o segredo LOADER_DATABASE_URL (Settings → Secrets and variables → Actions)."
+          set -euo pipefail
+          url="${LOADER_DATABASE_URL:-}"
+          if [ -z "$url" ] && [ -n "${NEON_API_KEY:-}" ] && [ -n "${NEON_PROJECT_ID:-}" ]; then
+            # Cria o papel de leitura se ainda não existir (a senha gerada não é exibida;
+            # copie a string dele no painel do Neon para a variável DATABASE_URL da API).
+            if ! npx -y "$NEON_CLI" roles list --project-id "$NEON_PROJECT_ID" -o json \
+                | jq -e --arg r "$READER_ROLE" '[.. | objects | select(has("name")) | .name] | index($r) != null' >/dev/null; then
+              npx -y "$NEON_CLI" roles create --project-id "$NEON_PROJECT_ID" --name "$READER_ROLE" >/dev/null
+              echo "Papel $READER_ROLE criado no Neon."
+            fi
+            url="$(npx -y "$NEON_CLI" connection-string --project-id "$NEON_PROJECT_ID" \
+              --role-name "$OWNER_ROLE" --database-name "$DATABASE" --ssl require)"
+          fi
+          if [ -z "$url" ]; then
+            echo "::error::Conecte o Neon ao GitHub (NEON_API_KEY + NEON_PROJECT_ID) ou defina o segredo LOADER_DATABASE_URL."
             exit 1
           fi
-          case "$DATABASE_URL" in
+          echo "::add-mask::$url"
+          case "$url" in
             *sslmode=require*|*sslmode=verify-*) ;;
-            *) echo "::error::A URL precisa de sslmode=require (TLS)."; exit 1 ;;
+            *) echo "::error::A conexão precisa de sslmode=require (TLS)."; exit 1 ;;
           esac
+          echo "DATABASE_URL=$url" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
         with: { version: "0.8.17" }
