@@ -77,8 +77,14 @@ def grant_reader(conn: psycopg.Connection, role: str) -> None:
         conn.execute(sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA {} TO {}").format(n, r))
         conn.execute(sql.SQL("GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA {} TO {}").format(n, r))
         conn.execute(sql.SQL("ALTER DEFAULT PRIVILEGES IN SCHEMA {} GRANT SELECT ON TABLES TO {}").format(n, r))
-    conn.execute(sql.SQL("ALTER ROLE {} SET default_transaction_read_only = on").format(r))
     print(f"Leitura concedida a {role} em: {', '.join(sorted(schemas))}")
+    # Camada extra: a API já abre cada sessão com default_transaction_read_only = on.
+    # Em bancos gerenciados (ex.: Neon) o papel dono pode não ter ADMIN sobre o papel.
+    try:
+        conn.execute(sql.SQL("ALTER ROLE {} SET default_transaction_read_only = on").format(r))
+    except psycopg.errors.InsufficientPrivilege:
+        print(f"Aviso: sem permissão para ALTER ROLE {role}; o papel continua só com SELECT "
+              "e a API força sessões somente leitura.")
 
 
 def run_dbt(args: list[str]) -> tuple[bool, str]:
