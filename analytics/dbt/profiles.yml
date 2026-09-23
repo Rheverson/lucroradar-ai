@@ -1,0 +1,13 @@
+# Credenciais vêm de variáveis de ambiente (ver .env.example). Nada de segredos aqui.
+lucroradar:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'localhost') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      user: "{{ env_var('POSTGRES_USER', 'lucroradar') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'lucroradar') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'lucroradar') }}"
+      schema: analytics
+      threads: 4

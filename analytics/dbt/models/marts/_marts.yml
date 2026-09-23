@@ -1,0 +1,210 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: "Grão: um dia da janela analítica."
+    columns:
+      - name: date_day
+        data_tests: [unique, not_null]
+
+  - name: dim_customer
+    description: >
+      Grão: um cadastro de cliente válido. Possíveis duplicidades são sinalizadas
+      (is_duplicate_candidate), nunca consolidadas automaticamente.
+    columns:
+      - name: customer_id
+        data_tests: [unique, not_null]
+      - name: segment
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Construção', 'Eventos', 'Indústria', 'Agronegócio', 'Serviços', 'Não informado']
+      - name: region
+        data_tests: [not_null]
+
+  - name: dim_product
+    description: "Grão: produto comercial canônico (SKU). Diferente de unidade física."
+    columns:
+      - name: sku
+        data_tests: [unique, not_null]
+      - name: product_line
+        data_tests: [not_null]
+
+  - name: dim_equipment_unit
+    description: "Grão: unidade física de equipamento da frota (ativo com número de série)."
+    columns:
+      - name: unit_id
+        data_tests: [unique, not_null]
+      - name: sku
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: sku
+
+  - name: fct_sales_order_lines
+    description: >
+      Grão: uma linha de item de pedido de venda válida. Receita reconhecida no
+      faturamento. Custo ausente permanece NULL e a margem da linha fica NULL.
+    columns:
+      - name: order_item_id
+        data_tests: [unique, not_null]
+      - name: customer_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+      - name: sku
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: sku
+      - name: net_revenue
+        data_tests:
+          - not_null
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "net_revenue = gross_amount - discount_amount"
+      - expression_is_true:
+          arguments:
+            expression: "(cost_known and contribution_margin is not null) or (not cost_known and contribution_margin is null and product_cost is null)"
+      - expression_is_true:
+          arguments:
+            expression: "is_recognized = (revenue_date is not null)"
+
+  - name: fct_rental_revenue_monthly
+    description: >
+      Grão: item de contrato (unidade física alocada) × mês. Receita pró-rata dia
+      sobre o valor mensal acordado.
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "active_days between 1 and days_in_month"
+      - expression_is_true:
+          arguments:
+            expression: "recognized_revenue >= 0 and list_revenue >= recognized_revenue - 0.01"
+    columns:
+      - name: unit_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_equipment_unit')
+                field: unit_id
+
+  - name: fct_rental_logistics_costs
+    description: "Grão: custo logístico de contrato × item (unidade) do contrato."
+
+  - name: mart_contribution_monthly
+    description: >
+      Grão: mês × linha de negócio × cliente × produto × vendedor. Receita,
+      descontos, custos diretos e margem de contribuição (apenas linhas com custo conhecido).
+    columns:
+      - name: business_line
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['sale', 'rental']
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "revenue_cost_known <= net_revenue + 0.01"
+
+  - name: fct_receivables
+    description: "Grão: título a receber (parcela) válido com situação na data de referência."
+    columns:
+      - name: receivable_id
+        data_tests: [unique, not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['paid', 'overdue', 'open_not_due']
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "open_amount >= 0 and paid_amount >= 0"
+
+  - name: fct_receipts
+    description: "Grão: recebimento financeiro válido (entrada de caixa)."
+    columns:
+      - name: receipt_id
+        data_tests: [unique, not_null]
+      - name: receivable_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('fct_receivables')
+                field: receivable_id
+
+  - name: mart_receivables_monthly
+    description: "Grão: fechamento mensal × cliente × linha de negócio (saldo aberto e vencido naquela data)."
+
+  - name: fct_payables
+    description: "Grão: conta a pagar válida."
+    columns:
+      - name: payable_id
+        data_tests: [unique, not_null]
+
+  - name: mart_cash_monthly
+    description: "Grão: mês × direção × categoria. Caixa realizado — não é lucro."
+
+  - name: mart_cash_forecast
+    description: "Grão: semana × direção. Valores previstos por vencimento contratual (sem ajuste de atraso)."
+
+  - name: fct_equipment_unit_day
+    description: "Grão: unidade física × dia na frota. Status: maintenance > rented > idle."
+    data_tests:
+      - dbt_unique_unit_day
+    columns:
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['rented', 'idle', 'maintenance']
+
+  - name: mart_fleet_utilization_monthly
+    description: "Grão: mês × SKU. Utilização = dias locados / (dias na frota − dias em manutenção)."
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "rented_days + idle_days + maintenance_days = owned_days"
+      - expression_is_true:
+          arguments:
+            expression: "time_utilization is null or time_utilization between 0 and 1"
+
+  - name: mart_unit_utilization
+    description: "Grão: unidade física (janela inteira e últimos 90 dias)."
+    columns:
+      - name: unit_id
+        data_tests: [unique]
+
+  - name: fct_maintenance_orders
+    description: "Grão: ordem de manutenção. Abertas têm custo NULL (ainda desconhecido)."
+    columns:
+      - name: maintenance_id
+        data_tests: [unique, not_null]
+
+  - name: fct_orders
+    description: "Grão: pedido válido (venda ou locação) com status na data de referência."
+    columns:
+      - name: order_id
+        data_tests: [unique, not_null]
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['open', 'completed', 'cancelled']
+
+  - name: fct_order_stage_durations
+    description: >
+      Grão: pedido × etapa. Duração até a próxima etapa; etapas sem saída na
+      referência ficam abertas (is_open) com duração parcial.
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "duration_hours is null or duration_hours >= 0"

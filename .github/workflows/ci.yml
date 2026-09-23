@@ -1,0 +1,76 @@
+name: LucroRadar AI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    name: Web (lint, tipos, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: npm ci
+        working-directory: apps/web
+      - run: npx eslint . && npx tsc --noEmit && npm run build
+        working-directory: apps/web
+
+  data-api-e2e:
+    name: Pipeline, testes Python/dbt e ponta a ponta
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: lucroradar, POSTGRES_PASSWORD: lucroradar, POSTGRES_DB: lucroradar }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U lucroradar" --health-interval 3s --health-retries 20
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_USER: lucroradar
+      POSTGRES_PASSWORD: lucroradar
+      POSTGRES_DB: lucroradar
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "0.8.17" }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: uv sync --all-extras --frozen
+      - run: uv run ruff check .
+      - name: Pipeline (gera, carrega, dbt build com testes)
+        run: uv run lucroradar-ingest run --generate --trigger ci
+      - name: Reexecução não duplica
+        run: uv run lucroradar-ingest run --trigger ci-rerun
+      - name: Pytest (unitários, integração, avaliações do copiloto em modo demo)
+        run: mkdir -p reports && uv run pytest --junitxml=reports/pytest.xml
+      - name: Lógica do workflow n8n
+        run: ./scripts/run_n8n_logic_test.sh
+      - name: Subir API e web
+        run: |
+          nohup uv run uvicorn lucroradar_api.main:app --port 8000 > api.log 2>&1 &
+          cd apps/web && npm ci && npm run build
+          cp -r .next/static .next/standalone/.next/static
+          API_URL=http://localhost:8000 nohup node .next/standalone/server.js > web.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf localhost:3000 >/dev/null && curl -sf localhost:8000/api/health && break; sleep 2; done
+      - name: Playwright
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium && npx playwright test
+      - name: Resumo dos testes
+        if: always()
+        run: uv run python scripts/collect_test_summary.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: relatorios-de-teste
+          path: |
+            reports
+            apps/web/public/test-summary.json
+            apps/web/test-results
+            api.log
+            apps/web/web.log

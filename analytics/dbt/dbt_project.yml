@@ -1,0 +1,38 @@
+name: lucroradar
+version: "0.1.0"
+config-version: 2
+profile: lucroradar
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+on-run-start:
+  - "{{ create_util_functions() }}"
+
+models:
+  lucroradar:
+    staging:
+      +schema: staging
+      # tabelas (não views): muitas marts reutilizam a mesma staging e o volume é pequeno
+      +materialized: table
+    intermediate:
+      +schema: intermediate
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table
+    quality:
+      +schema: quality
+      +materialized: table
+
+seeds:
+  lucroradar:
+    +schema: reference
+
+data_tests:
+  lucroradar:
+    +severity: error

@@ -1,0 +1,12 @@
+{
+  "should_alert": true,
+  "reasons": [
+    "Margem de contribuição variou -4,9 p.p. (limite: -1.5 p.p.)",
+    "Saldo vencido cresceu 74,0% (limite: 15,0%)",
+    "3 alerta(s) de severidade alta na API"
+  ],
+  "subject": "[LucroRadar] Atenção: Margem de contribuição variou -4,9 p.p. (limite: -1.5 p.p.)",
+  "body": "Condições acionadas:\n• Margem de contribuição variou -4,9 p.p. (limite: -1.5 p.p.)\n• Saldo vencido cresceu 74,0% (limite: 15,0%)\n• 3 alerta(s) de severidade alta na API\n\nResumo executivo — jan/2026 a jun/2026 (dados sintéticos)\nReceita líquida: R$ 26.351.065 (21,0% vs. comparação)\nMargem de contribuição: 32,7% (-4,9 p.p.)\nRecebimentos: R$ 23.644.706 · Vencidos: R$ 2.454.388\n\nAlertas:\n- [high] Margem de contribuição caiu enquanto a receita variou 21,0%\n- [high] Desconto médio subiu\n- [high] Valores vencidos cresceram\n- [medium] Custo direto pressiona a margem em Geradores\n- [medium] Equipamentos com baixa utilização\n- [medium] 11 unidade(s) em manutenção há mais de 30 dias\n- [medium] Etapa \"Análise de crédito\" ficou mais lenta",
+  "period": "jan/2026 a jun/2026",
+  "synthetic_data": true
+}

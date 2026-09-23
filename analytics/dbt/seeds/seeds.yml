@@ -1,0 +1,19 @@
+version: 2
+seeds:
+  - name: state_region
+    description: UF → região (IBGE). Usado para derivar região ausente a partir da UF.
+    columns:
+      - name: state
+        data_tests: [unique, not_null]
+  - name: product_code_aliases
+    description: >
+      Mapeamento curado de códigos legados para o código canônico do produto.
+      Decisão explícita de curadoria (não é inferida por semelhança de texto).
+    columns:
+      - name: legacy_sku
+        data_tests: [unique, not_null]
+  - name: stage_catalog
+    description: Etapas de pedido, ordem e rótulo em português.
+    columns:
+      - name: stage_code
+        data_tests: [unique, not_null]

@@ -1,0 +1,256 @@
+{
+  "name": "LucroRadar — resumo executivo e alertas",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1",
+      "name": "Executar manualmente",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "api_url",
+              "type": "string",
+              "value": "={{ $env.LUCRORADAR_API_URL || 'http://localhost:8000' }}"
+            },
+            {
+              "id": "c2",
+              "name": "start",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "c3",
+              "name": "end",
+              "type": "string",
+              "value": ""
+            },
+            {
+              "id": "c4",
+              "name": "margin_drop_pp",
+              "type": "number",
+              "value": 1.5
+            },
+            {
+              "id": "c5",
+              "name": "overdue_growth_pct",
+              "type": "number",
+              "value": 0.15
+            },
+            {
+              "id": "c6",
+              "name": "min_high_alerts",
+              "type": "number",
+              "value": 1
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a2",
+      "name": "Configuração",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.api_url }}/api/v1/automation/summary{{ $json.start && $json.end ? '?start=' + $json.start + '&end=' + $json.end : '' }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a3",
+      "name": "Consultar resumo (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Lógica do nó \"Verificar condições\" do workflow n8n.\n// Mantida em arquivo próprio para ser testada fora do n8n (ver test_check_conditions.mjs)\n// e embutida no workflow por build_workflow.py.\nfunction checkConditions(summary, config) {\n  const k = summary.kpis;\n  const brl = (v) => (v == null ? \"—\" : \"R$ \" + Math.round(v).toLocaleString(\"pt-BR\"));\n  const pct = (v) => (v == null ? \"—\" : (v * 100).toFixed(1).replace(\".\", \",\") + \"%\");\n  const pp = (v) => (v == null ? \"—\" : (v >= 0 ? \"+\" : \"\") + (v * 100).toFixed(1).replace(\".\", \",\") + \" p.p.\");\n  const reasons = [];\n  if (k.margin_pct.delta != null && k.margin_pct.delta <= -config.margin_drop_pp / 100) {\n    reasons.push(`Margem de contribuição variou ${pp(k.margin_pct.delta)} (limite: -${config.margin_drop_pp} p.p.)`);\n  }\n  if (k.overdue.delta_pct != null && k.overdue.delta_pct >= config.overdue_growth_pct) {\n    reasons.push(`Saldo vencido cresceu ${pct(k.overdue.delta_pct)} (limite: ${pct(config.overdue_growth_pct)})`);\n  }\n  if (summary.high_severity_count >= config.min_high_alerts) {\n    reasons.push(`${summary.high_severity_count} alerta(s) de severidade alta na API`);\n  }\n  const period = summary.generated_for.period.label;\n  const lines = [\n    `Resumo executivo — ${period} (dados sintéticos)`,\n    `Receita líquida: ${brl(k.net_revenue.current)} (${pct(k.net_revenue.delta_pct)} vs. comparação)`,\n    `Margem de contribuição: ${pct(k.margin_pct.current)} (${pp(k.margin_pct.delta)})`,\n    `Recebimentos: ${brl(k.receipts.current)} · Vencidos: ${brl(k.overdue.current)}`,\n    \"\",\n    \"Alertas:\",\n    ...summary.alerts.map((a) => `- [${a.severity}] ${a.title}`),\n  ];\n  return {\n    should_alert: reasons.length > 0,\n    reasons,\n    subject: reasons.length ? `[LucroRadar] Atenção: ${reasons[0]}` : `[LucroRadar] Resumo executivo ${period}`,\n    body: [...(reasons.length ? [\"Condições acionadas:\", ...reasons.map((r) => `• ${r}`), \"\"] : []), ...lines].join(\"\\n\"),\n    period,\n    synthetic_data: summary.synthetic_data === true,\n  };\n}\n\n\nconst config = $('Configuração').first().json;\nconst summary = $input.first().json;\nreturn [{ json: { ...checkConditions(summary, config), config } }];\n"
+      },
+      "id": "a4",
+      "name": "Verificar condições",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        660,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "i1",
+              "leftValue": "={{ $json.should_alert }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a5",
+      "name": "Há condição de alerta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        880,
+        300
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a6",
+      "name": "Alerta preparado (saída de teste)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a7",
+      "name": "Resumo preparado (saída de teste)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alertas@exemplo.invalid",
+        "toEmail": "gestor@exemplo.invalid",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "text",
+        "text": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "a8",
+      "name": "Enviar e-mail (DESATIVADO — requer SMTP)",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1320,
+        200
+      ],
+      "disabled": true,
+      "notes": "Exemplo. Exige credencial SMTP configurada no n8n. Mantido desativado por padrão."
+    }
+  ],
+  "connections": {
+    "Executar manualmente": {
+      "main": [
+        [
+          {
+            "node": "Configuração",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuração": {
+      "main": [
+        [
+          {
+            "node": "Consultar resumo (API)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar resumo (API)": {
+      "main": [
+        [
+          {
+            "node": "Verificar condições",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar condições": {
+      "main": [
+        [
+          {
+            "node": "Há condição de alerta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Há condição de alerta?": {
+      "main": [
+        [
+          {
+            "node": "Alerta preparado (saída de teste)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Resumo preparado (saída de teste)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alerta preparado (saída de teste)": {
+      "main": [
+        [
+          {
+            "node": "Enviar e-mail (DESATIVADO — requer SMTP)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

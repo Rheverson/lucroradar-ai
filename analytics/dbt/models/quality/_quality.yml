@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: dq_quarantine
+    description: "Registros que falharam na validação, com motivo e conteúdo original (raw_payload)."
+  - name: dq_issue_summary
+    description: "Problemas de qualidade por tipo, tratamento aplicado e consequência para as análises."
+  - name: dq_customer_duplicate_candidates
+    description: "Pares de clientes possivelmente duplicados, com evidência e recomendação. Sem unificação automática."
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "not (different_tax_id and match_score >= 0.6)"
+  - name: rec_row_counts
+    description: "Reconciliação de contagens raw → staging/quarentena por tabela."
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "distinct_keys = valid_rows + quarantined_rows"
+  - name: rec_financial_totals
+    description: "Reconciliação de totais entre camadas e métodos independentes."
+    data_tests:
+      - expression_is_true:
+          arguments:
+            expression: "status = 'ok'"

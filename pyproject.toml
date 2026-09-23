@@ -1,0 +1,60 @@
+[project]
+name = "lucroradar"
+version = "0.1.0"
+description = "LucroRadar AI — inteligência de margem, caixa e produtividade (dados sintéticos)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "psycopg[binary]>=3.2,<4",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "pydantic>=2.8,<3",
+    "pydantic-settings>=2.4,<3",
+    "psycopg-pool>=3.2,<4",
+    "anthropic>=0.40",
+]
+pipeline = [
+    "dbt-core>=1.10,<2",
+    "dbt-postgres>=1.9,<2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+lucroradar-generate = "lucroradar_generator.cli:main"
+lucroradar-ingest = "lucroradar_ingestion.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "data/generator/lucroradar_generator",
+    "data/ingestion/lucroradar_ingestion",
+    "services/api/lucroradar_api",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+markers = [
+    "db: requer PostgreSQL com o pipeline executado",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]

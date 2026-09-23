@@ -1,0 +1,74 @@
+# Ambiente local completo. Uso: docker compose up --build
+# O serviço "pipeline" gera os dados sintéticos, carrega e roda o dbt uma vez.
+name: lucroradar
+
+x-db-env: &db-env
+  POSTGRES_HOST: db
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: ${POSTGRES_USER:-lucroradar}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lucroradar}
+  POSTGRES_DB: ${POSTGRES_DB:-lucroradar}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lucroradar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lucroradar}
+      POSTGRES_DB: ${POSTGRES_DB:-lucroradar}
+    ports: ["${DB_PORT:-5432}:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      retries: 20
+
+  pipeline:
+    build: { context: ., dockerfile: infra/docker/python.Dockerfile }
+    environment: *db-env
+    command: ["lucroradar-ingest", "run", "--generate", "--seed", "${SEED:-42}", "--reference-date", "${REFERENCE_DATE:-2026-06-30}", "--trigger", "docker-compose"]
+    depends_on: { db: { condition: service_healthy } }
+    restart: "no"
+
+  api:
+    build: { context: ., dockerfile: infra/docker/python.Dockerfile }
+    environment:
+      <<: *db-env
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      COPILOT_MODEL: ${COPILOT_MODEL:-claude-opus-5}
+      REPOSITORY_URL: ${REPOSITORY_URL:-https://github.com/SEU-USUARIO/lucroradar-ai}
+      CORS_ORIGINS: http://localhost:3000
+    ports: ["${API_PORT:-8000}:8000"]
+    depends_on:
+      db: { condition: service_healthy }
+      pipeline: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 5s
+      retries: 20
+
+  web:
+    build: { context: apps/web }
+    environment:
+      API_URL: http://api:8000
+    ports: ["${WEB_PORT:-3000}:3000"]
+    depends_on: { api: { condition: service_healthy } }
+
+  # Opcional: docker compose --profile automation up n8n
+  n8n:
+    image: n8nio/n8n:1.110.1
+    profiles: ["automation"]
+    ports: ["5678:5678"]
+    environment:
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      N8N_PERSONALIZATION_ENABLED: "false"
+      LUCRORADAR_API_URL: http://api:8000
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "false"
+    volumes:
+      - n8ndata:/home/node/.n8n
+      - ./automations/n8n:/workflows:ro
+    depends_on: { api: { condition: service_healthy } }
+
+volumes:
+  pgdata:
+  n8ndata:

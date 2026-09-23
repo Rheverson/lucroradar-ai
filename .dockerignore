@@ -1,0 +1,10 @@
+.venv
+**/__pycache__
+apps/web/node_modules
+apps/web/.next
+data/landing
+data/manifest
+analytics/dbt/target
+analytics/dbt/logs
+.pytest_cache
+.ruff_cache

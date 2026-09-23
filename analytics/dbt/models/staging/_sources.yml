@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Dados como recebidos (todas as colunas em texto). Cada linha carrega
+      _batch_id, _source_file, _row_number e _record_hash. Tabelas de estado
+      (contratos, manutenções, clientes) podem ter várias versões por chave:
+      a staging escolhe a do lote mais recente.
+    schema: raw
+    tables:
+      - name: customers
+      - name: products
+      - name: equipment_units
+      - name: orders
+      - name: order_items
+      - name: order_events
+      - name: rental_contracts
+      - name: rental_contract_items
+      - name: maintenance_orders
+      - name: direct_costs
+      - name: receivables
+      - name: receipts
+      - name: payables
+      - name: disbursements
+  - name: audit
+    schema: audit
+    tables:
+      - name: load_batches
+      - name: load_files
+      - name: pipeline_runs
+      - name: pipeline_run_steps
+      - name: ingestion_rejects

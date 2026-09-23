@@ -1,0 +1,120 @@
+{
+    "generated_for": {
+        "period": {
+            "start": "2026-01",
+            "end": "2026-06",
+            "label": "jan/2026 a jun/2026",
+            "months": 6
+        },
+        "comparison": {
+            "start": "2025-07",
+            "end": "2025-12",
+            "label": "jul/2025 a dez/2025",
+            "months": 6
+        },
+        "compare_mode": "previous"
+    },
+    "synthetic_data": true,
+    "kpis": {
+        "net_revenue": {
+            "current": 26351064.92,
+            "previous": 21782735.99,
+            "delta": 4568328.930000003,
+            "delta_pct": 0.20972245782610727
+        },
+        "contribution_margin": {
+            "current": 8195009.99,
+            "previous": 8058455.69,
+            "delta": 136554.2999999998,
+            "delta_pct": 0.016945467624703142
+        },
+        "margin_pct": {
+            "current": 0.3267144936713243,
+            "previous": 0.3756628214414996,
+            "delta": -0.04894832777017527,
+            "delta_pct": null
+        },
+        "receipts": {
+            "current": 23644705.95,
+            "previous": 21691754.35,
+            "delta": 1952951.5999999978,
+            "delta_pct": 0.09003198028563317
+        },
+        "overdue": {
+            "current": 2454387.88,
+            "previous": 1410410.15,
+            "delta": 1043977.73,
+            "delta_pct": 0.7401944250046698
+        },
+        "open_receivables": {
+            "current": 7847063.01,
+            "previous": 5288457.75,
+            "delta": 2558605.26,
+            "delta_pct": 0.48380934120160074
+        },
+        "discount_rate": {
+            "current": 0.07673851258122891,
+            "previous": 0.04888632975282767,
+            "delta": 0.02785218282840124,
+            "delta_pct": null
+        },
+        "cost_coverage": {
+            "current": 0.9518815636540885,
+            "previous": 0.9847844412128873,
+            "delta": -0.03290287755879884,
+            "delta_pct": null
+        },
+        "cash_conversion": {
+            "current": 0.8972960304178855,
+            "previous": 0.9958232225721432,
+            "delta": -0.09852719215425765,
+            "delta_pct": null
+        }
+    },
+    "alerts": [
+        {
+            "id": "margin_drop",
+            "severity": "high",
+            "title": "Margem de contribuição caiu enquanto a receita variou 21,0%",
+            "summary": "A margem percentual variou -4,9 p.p.; os efeitos negativos na ponte de margem foram: desconto, custo direto."
+        },
+        {
+            "id": "discount_rise",
+            "severity": "high",
+            "title": "Desconto médio subiu",
+            "summary": "A taxa de desconto passou de 4,9% para 7,7%. Concentração nos vendedores V06, V07, V04."
+        },
+        {
+            "id": "overdue_growth",
+            "severity": "high",
+            "title": "Valores vencidos cresceram",
+            "summary": "O saldo vencido foi de R$ 1.410.410 para R$ 2.454.388 (74,0%), enquanto os recebimentos variaram 9,0%."
+        },
+        {
+            "id": "cost_pressure_Geradores",
+            "severity": "medium",
+            "title": "Custo direto pressiona a margem em Geradores",
+            "summary": "O efeito custo em Geradores foi -R$ 270.385, não compensado por preço (R$ 91.577)."
+        },
+        {
+            "id": "idle_fleet",
+            "severity": "medium",
+            "title": "Equipamentos com baixa utilização",
+            "summary": "1 produto(s) da frota com utilização abaixo de 50% no período. Capital parado estimado (depreciação dos dias ociosos): R$ 296.366."
+        },
+        {
+            "id": "long_maintenance",
+            "severity": "medium",
+            "title": "11 unidade(s) em manutenção há mais de 30 dias",
+            "summary": "Unidades paradas reduzem a capacidade disponível para locação."
+        },
+        {
+            "id": "stage_credit_review",
+            "severity": "medium",
+            "title": "Etapa \"Análise de crédito\" ficou mais lenta",
+            "summary": "Nos pedidos ≥ R$ 30 mil, a mediana passou de 19 h para 84 h (4,4×). 15 pedido(s) ainda nesta etapa."
+        }
+    ],
+    "alert_count": 7,
+    "high_severity_count": 3
+}

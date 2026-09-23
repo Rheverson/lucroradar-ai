@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Tokens de cor: azul profundo, verde-esmeralda e superfícies neutras. */
+:root {
+  color-scheme: light;
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --border: #e2e7ee;
+  --text: #0e1726;
+  --text-2: #475467;
+  --muted: #667085;
+  --brand: #0b2f5b;
+  --brand-2: #16457f;
+  --accent: #0b7a57;
+  --accent-soft: #e3f5ee;
+  --focus: #1d6fd6;
+  /* séries de gráfico (validadas para daltonismo: azul, laranja, verde-água) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --grid: #e7ebf0;
+  /* status — sempre acompanhados de ícone e texto */
+  --good: #0b7a57;
+  --warn: #a15c00;
+  --bad: #b42318;
+  --good-bg: #e3f5ee;
+  --warn-bg: #fff4e0;
+  --bad-bg: #fde8e7;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0a111e;
+  --surface: #111a2b;
+  --surface-2: #0e1625;
+  --border: #243249;
+  --text: #e8edf5;
+  --text-2: #b7c2d3;
+  --muted: #8e9bb0;
+  --brand: #9cc4ff;
+  --brand-2: #6aa3f0;
+  --accent: #3ccf97;
+  --accent-soft: #0f3326;
+  --focus: #6aa3f0;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --grid: #1e2a3e;
+  --good: #3ccf97;
+  --warn: #f2b35b;
+  --bad: #ff8a80;
+  --good-bg: #0f3326;
+  --warn-bg: #3a2a0c;
+  --bad-bg: #3d1614;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-ink-2: var(--text-2);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-good: var(--good);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-good-bg: var(--good-bg);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad-bg: var(--bad-bg);
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+}
+
+html { background: var(--bg); }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-feature-settings: "tnum" 1, "cv11" 1;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.num { font-variant-numeric: tabular-nums; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-rise { animation: rise 220ms ease-out both; }
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0, var(--border) 50%, var(--surface-2) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+.recharts-wrapper *:focus { outline: none; }
+
+/* itens de grid não devem crescer além da coluna por causa de tabelas/gráficos largos */
+.grid > * { min-width: 0; }

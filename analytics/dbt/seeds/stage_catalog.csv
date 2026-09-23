@@ -1,0 +1,8 @@
+stage_code,stage_order,stage_label,is_terminal
+CREATED,1,Pedido criado,false
+CREDIT_REVIEW,2,Análise de crédito,false
+APPROVED,3,Aprovado,false
+PICKING,4,Separação e preparo,false
+INVOICED,5,Faturado,false
+DELIVERED,6,Entregue,true
+CANCELLED,9,Cancelado,true
